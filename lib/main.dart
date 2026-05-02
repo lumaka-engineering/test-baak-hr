@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+
 import 'data/providers/auth_provider.dart';
 import 'ui/screens/login_screen.dart';
+import 'ui/screens/dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,11 +30,29 @@ class BaakHRApp extends StatelessWidget {
       title: 'Baak HR Management',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.indigo,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
         fontFamily: 'Poppins',
       ),
-      home: const LoginScreen(),
+      
+      home: FutureBuilder<bool>(
+        future: context.read<AuthProvider>().checkAuthStatus(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (snapshot.data == true) {
+            return const DashboardScreen(); 
+          }
+
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

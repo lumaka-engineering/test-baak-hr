@@ -10,38 +10,56 @@ class AuthProvider with ChangeNotifier {
   late final Dio _dio;
 
   AuthProvider() {
-    // Récupération de l'URL de base depuis le fichier .env
     final baseUrl = dotenv.get('API_URL', fallback: 'http://localhost:3002');
+    
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 5), // Bonne pratique : ajout d'un timeout
-      receiveTimeout: const Duration(seconds: 3),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
+
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        String? token = await _storage.read(key: 'token');
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+      onError: (DioException e, handler) {
+        if (e.response?.statusCode == 401) {
+          logout(); 
+        }
+        return handler.next(e);
+      },
     ));
   }
   
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  /// Méthode de connexion pour les Agents (Desktop)
+  Future<bool> checkAuthStatus() async {
+    String? token = await _storage.read(key: 'token');
+    if (token != null) {
+      return true;
+    }
+    return false;
+  }
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // CORRECTION : On envoie 'password' pour correspondre au DTO du Backend
       final response = await _dio.post('/auth/agent/login', data: {
-        'email': email,
-        'password': password, 
+        'email': email.trim(),
+        'pass': password, 
       });
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // Stockage sécurisé du jeton JWT
         String token = response.data['access_token'];
         await _storage.write(key: 'token', value: token);
         
-        // Optionnel : Tu pourrais aussi stocker les infos de l'agent (nom, role) ici
-        // await _storage.write(key: 'agent_role', value: response.data['agent']['role']);
-
         _isLoading = false;
         notifyListeners();
         return true;
@@ -52,20 +70,19 @@ class AuthProvider with ChangeNotifier {
       return false;
       
     } on DioException catch (e) {
-      // Gestion plus fine des erreurs avec DioException
       _isLoading = false;
       notifyListeners();
       
-      print('Erreur Auth: ${e.response?.data['message'] ?? e.message}');
+      debugPrint('Erreur Auth détaillée: ${e.response?.data ?? e.message}');
       return false;
     } catch (e) {
       _isLoading = false;
       notifyListeners();
+      debugPrint('Erreur système : $e');
       return false;
     }
   }
 
-  /// Déconnexion
   Future<void> logout() async {
     await _storage.delete(key: 'token');
     notifyListeners();
