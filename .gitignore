@@ -53,3 +53,5 @@ test/
 web/
 .metadata
 pubspec.lock
+
+.env
