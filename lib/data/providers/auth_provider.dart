@@ -5,9 +5,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthProvider with ChangeNotifier {
   final _storage = const FlutterSecureStorage();
-  
-  // Instance Dio pour les requêtes HTTP
   late final Dio _dio;
+
+  Map<String, dynamic>? _agentProfile;
+  Map<String, dynamic>? get agentProfile => _agentProfile;
 
   AuthProvider() {
     final baseUrl = dotenv.get('API_URL', fallback: 'http://localhost:3002');
@@ -38,12 +39,19 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  Future<void> fetchProfile() async {
+    try {
+      final response = await _dio.get('/auth/agent/me');
+      _agentProfile = response.data;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Erreur lors de la récupération du profil: $e');
+    }
+  }
+
   Future<bool> checkAuthStatus() async {
     String? token = await _storage.read(key: 'token');
-    if (token != null) {
-      return true;
-    }
-    return false;
+    return token != null;
   }
 
   Future<bool> login(String email, String password) async {
@@ -60,6 +68,8 @@ class AuthProvider with ChangeNotifier {
         String token = response.data['access_token'];
         await _storage.write(key: 'token', value: token);
         
+        await fetchProfile();
+        
         _isLoading = false;
         notifyListeners();
         return true;
@@ -72,7 +82,6 @@ class AuthProvider with ChangeNotifier {
     } on DioException catch (e) {
       _isLoading = false;
       notifyListeners();
-      
       debugPrint('Erreur Auth détaillée: ${e.response?.data ?? e.message}');
       return false;
     } catch (e) {
@@ -84,6 +93,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _agentProfile = null;
     await _storage.delete(key: 'token');
     notifyListeners();
   }
