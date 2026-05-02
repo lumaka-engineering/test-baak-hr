@@ -38,6 +38,7 @@ class BaakHRApp extends StatelessWidget {
       home: FutureBuilder<bool>(
         future: context.read<AuthProvider>().checkAuthStatus(),
         builder: (context, snapshot) {
+          // État de chargement
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
               body: Center(
