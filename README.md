@@ -23,3 +23,6 @@ Veuillez noter que ces versions sont destinées à des tests internes. Pour fonc
 * Framework : Flutter
 * Langage : Dart
 * Systèmes cibles : Windows, Linux, macOS
+
+## Aperçu de l'interface
+![Démo Baak HR](pictures/gif.gif)
